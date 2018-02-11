@@ -1,6 +1,6 @@
 TARGET = avrshock2-usb
-SOURCES = avrshock2/src/avrshock2.c src/uart.c src/avrshock2-usb.c
-HEADERS = avrshock2/src/avrshock2.h src/uart.h
+SOURCES = avrshock2/src/avrshock2.c src/avrshock2-usb.c
+HEADERS = avrshock2/src/avrshock2.h
 INCLUDE_DIRS = -Iavrshock2/src
 MCU = atmega328p
 F_CPU = 16000000

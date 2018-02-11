@@ -193,7 +193,7 @@ int main(void)
 		read(avrshock2_fd, avrshock2_buff, sizeof(avrshock2_buff));
 
 		for (int i = BUTTON_FIRST; i <= BUTTON_LAST; ++i)
-			emit(EV_KEY, virtual_btn_map[i], avrshock2_buff[i]);
+			emit(EV_KEY, virtual_btn_map[i], avrshock2_buff[i] ? 1 : 0);
 
 		for (int i = ANALOG_FIRST; i <= ANALOG_LAST; ++i)
 			emit(EV_ABS, virtual_analog_map[i], avrshock2_buff[BUTTON_LAST + 1 + i]);

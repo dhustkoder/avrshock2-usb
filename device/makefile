@@ -4,7 +4,6 @@ HEADERS = avrshock2/src/avrshock2.h src/uart.h
 INCLUDE_DIRS = -Iavrshock2/src
 MCU = atmega328p
 F_CPU = 16000000
-BAUD = 9600
 
 # C
 CC = avr-gcc
@@ -16,7 +15,7 @@ CFLAGS = -std=c11 -pedantic-errors -Wall -Wextra -Wno-main -DNDEBUG -DAVRSHOCK2_
          -ffast-math -fstrict-aliasing -ffunction-sections -fdata-sections                  \
 	 -fwhole-program -ffreestanding -fno-tree-scev-cprop                                \
 	 -Wl,--relax -fno-unwind-tables  -fno-asynchronous-unwind-tables                    \
-         -DNDEBUG -mmcu=$(MCU) -DF_CPU=$(F_CPU)UL -DBAUD=$(BAUD) $(INCLUDE_DIRS)
+         -DNDEBUG -mmcu=$(MCU) -DF_CPU=$(F_CPU)UL $(INCLUDE_DIRS)
 
 # AVRDUDE
 AVRDUDE = avrdude

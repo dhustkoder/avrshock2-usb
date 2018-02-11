@@ -1,0 +1,10 @@
+*.elf
+*.eep
+*.hex
+*.lss
+*.lst
+*.map
+*.o
+*.sym
+*.d
+host/avrshock2_host

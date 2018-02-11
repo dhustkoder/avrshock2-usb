@@ -1,8 +1,8 @@
 #include <avr/io.h>
 
-#ifndef BAUD
-#define BAUD (9600)
-#endif
+
+#define BAUD (38400)
+
 
 #include <util/setbaud.h>
 
@@ -18,10 +18,11 @@ void uart_init(void)
 	UCSR0B = (0x01<<RXEN0)|(0x01<<TXEN0);   /* Enable RX and TX */
 }
 
-void uart_send(const uint8_t* const data, short size)
+void uart_send(const uint8_t* const data, const short size)
 {
 	for (int i = 0; i < size; ++i) {
 		loop_until_bit_is_set(UCSR0A, UDRE0);
 		UDR0 = data[i];
 	}
 }
+

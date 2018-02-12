@@ -68,52 +68,46 @@ static const int virtual_analog_map[] = {
 	[ANALOG_LY] = ABS_Y
 };
 
-static struct uinput_setup usetup;
+
 static int uintput_fd;
 static int avrshock2_fd;
 
 
 static void emit(const int type, const int code, const int val)
 {
-	static struct input_event ie;
-
+	static struct input_event ie = { 0 };
 	ie.type = type;
 	ie.code = code;
 	ie.value = val;
-
 	write(uintput_fd, &ie, sizeof(ie));
 }
 
-
-static bool init_system(void)
+static bool init_system(const char* const device_path)
 {
 
 	uintput_fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
-
 	if (uintput_fd == -1) {
-		perror("Couldn't open /ev/uintput");
+		perror("Couldn't open uinput_fd");
 		return false;
 	}
 
-	avrshock2_fd = open("/dev/ttyUSB0", O_NOCTTY | O_SYNC);
+	avrshock2_fd = open(device_path, O_NOCTTY | O_SYNC);
 	if (avrshock2_fd == -1) {
-		perror("Couldn't open /dev/ttyUSB0");
+		perror("Coudn't open avrshock2_fd");
 		close(uintput_fd);
 		return false;
 	}
 
-	struct termios tty;
-	memset (&tty, 0, sizeof tty);
-	if (tcgetattr (avrshock2_fd, &tty) != 0) {
-	        perror("error %d from tcgetattr");
+	struct termios tty = { 0 };
+	if (tcgetattr(avrshock2_fd, &tty) != 0) {
+	        perror("tcgetattr error");
 	        close(avrshock2_fd);
 	        close(uintput_fd);
 	        return false;
 	}
 
-	cfsetospeed (&tty, B38400);
-	cfsetispeed (&tty, B38400);
-
+	cfsetospeed(&tty, B38400);
+	cfsetispeed(&tty, B38400);
 	tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;     // 8-bit chars
 	// disable IGNBRK for mismatched speed tests; otherwise receive break
 	// as \000 chars
@@ -125,16 +119,13 @@ static bool init_system(void)
 	tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
 
 	tty.c_iflag &= ~(IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
-
-	tty.c_cflag |= (CLOCAL | CREAD);// ignore modem controls,
-	                                // enable reading
-	tty.c_cflag &= ~(PARENB | PARODD);      // shut off parity
-	//tty.c_cflag |= parity;
+	tty.c_cflag |= (CLOCAL | CREAD);    // ignore modem controls,
+	                                    // enable reading
+	tty.c_cflag &= ~(PARENB | PARODD);  // shut off parity
 	tty.c_cflag &= ~CSTOPB;
 	tty.c_cflag &= ~CRTSCTS;
-
-	if (tcsetattr (avrshock2_fd, TCSANOW, &tty) != 0) {
-	        perror("error %d from tcsetattr");
+	if (tcsetattr(avrshock2_fd, TCSANOW, &tty) != 0) {
+	        perror("tcsetattr error");
 	        close(avrshock2_fd);
 	        close(uintput_fd);
 	        return false;
@@ -145,33 +136,26 @@ static bool init_system(void)
 	ioctl(uintput_fd, UI_SET_EVBIT, EV_KEY);
 	for (int i = BUTTON_FIRST; i <= BUTTON_LAST; ++i)
 		ioctl(uintput_fd, UI_SET_KEYBIT, virtual_btn_map[i]);
+
 	ioctl(uintput_fd, UI_SET_EVBIT, EV_ABS);
 	for (int i = ANALOG_FIRST; i <= ANALOG_LAST; ++i)
 		ioctl(uintput_fd, UI_SET_ABSBIT, virtual_analog_map[i]);
 	
-	/* create device */
-	memset(&usetup, 0, sizeof(usetup));
-	usetup.id.bustype = BUS_VIRTUAL;
-	usetup.id.vendor = 0x1234; /* sample vendor */
-	usetup.id.product = 0x5678; /* sample product */
-	strcpy(usetup.name, "avrshock2 joystick");
-
-	ioctl(uintput_fd, UI_DEV_SETUP, &usetup);
-
-	struct uinput_abs_setup abs_setup;
-	abs_setup.absinfo.value   = 0;
-	abs_setup.absinfo.minimum = 0;
+	struct uinput_abs_setup abs_setup = { 0 };
 	abs_setup.absinfo.maximum = 255;
-	abs_setup.absinfo.fuzz = 0;
-	abs_setup.absinfo.flat = 0;
-	abs_setup.absinfo.resolution = 0;
 	for (int i = ANALOG_FIRST; i <= ANALOG_LAST; ++i) {
 		abs_setup.code = virtual_analog_map[i];
 		ioctl(uintput_fd, UI_ABS_SETUP, &abs_setup);
 	}
 
+	/* create device */
+	struct uinput_setup usetup = { 0 };
+	usetup.id.bustype = BUS_VIRTUAL;
+	usetup.id.vendor = 0xdead;
+	usetup.id.product = 0xc0de;
+	strcpy(usetup.name, "avrshock2 joystick");
+	ioctl(uintput_fd, UI_DEV_SETUP, &usetup);
 	ioctl(uintput_fd, UI_DEV_CREATE);
-
 	return true;
 }
 
@@ -182,25 +166,28 @@ static void term_system(void)
 	close(uintput_fd);
 }
 
-int main(void)
-{
-	uint8_t avrshock2_buff[20];
 
-	if (!init_system())
+int main(int argc, char** argv)
+{
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s [device]\n", argv[0]);
 		return EXIT_FAILURE;
+	}
+
+	if (!init_system(argv[1]))
+		return EXIT_FAILURE;
+
+
+	uint8_t avrshock2_buff[20];
 
 	for (;;) {
 		read(avrshock2_fd, avrshock2_buff, sizeof(avrshock2_buff));
-
 		for (int i = BUTTON_FIRST; i <= BUTTON_LAST; ++i)
 			emit(EV_KEY, virtual_btn_map[i], avrshock2_buff[i] ? 1 : 0);
-
 		for (int i = ANALOG_FIRST; i <= ANALOG_LAST; ++i)
 			emit(EV_ABS, virtual_analog_map[i], avrshock2_buff[BUTTON_LAST + 1 + i]);
-
-
 		emit(EV_SYN, SYN_REPORT, 0);
-		usleep(16000);
+		usleep(4000);
 	}
 
 	term_system();

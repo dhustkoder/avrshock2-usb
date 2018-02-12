@@ -117,17 +117,13 @@ static bool init_system(const char* const device_path)
 	}
 
 
-	/* setup buttons and analogs */
+	/* enables btns */
 	ioctl(uintput_fd, UI_SET_EVBIT, EV_KEY);
 	for (int i = 0; i < NBUTTONS; ++i)
 		ioctl(uintput_fd, UI_SET_KEYBIT, buttons[i]);
 
+	/* enabel and configure axis and hats */
 	ioctl(uintput_fd, UI_SET_EVBIT, EV_ABS);
-	for (int i = 0; i < NAXIS; ++i)
-		ioctl(uintput_fd, UI_SET_ABSBIT, axis[i]);
-	for (int i = 0; i < NHATS; ++i)
-		ioctl(uintput_fd, UI_SET_ABSBIT, hats[i]);
-	
 	struct uinput_abs_setup abs_setup = { 0 };
 	abs_setup.absinfo.maximum = 0xFF;
 	for (int i = 0; i < NAXIS; ++i) {
@@ -183,7 +179,6 @@ int main(int argc, char** argv)
 	if (!init_system(argv[1]))
 		return EXIT_FAILURE;
 
-
 	struct avrshock2_usb_data data;
 
 	for (;;) {
@@ -200,21 +195,19 @@ int main(int argc, char** argv)
 		for (int i = 0; i < NAXIS; ++i)
 			input_event(EV_ABS, axis[i], data.axis[axis_avrshock2_idxs[i]]);
 
-		if (data.buttons&AVRSHOCK2_BUTTON_UP)
-			input_event(EV_ABS, ABS_HAT0Y, 0);
-		else if (data.buttons&AVRSHOCK2_BUTTON_DOWN)
-			input_event(EV_ABS, ABS_HAT0Y, 255);
-		else
-			input_event(EV_ABS, ABS_HAT0Y, 128);
-
-
 		if (data.buttons&AVRSHOCK2_BUTTON_LEFT)
 			input_event(EV_ABS, ABS_HAT0X, 0);
 		else if (data.buttons&AVRSHOCK2_BUTTON_RIGHT)
 			input_event(EV_ABS, ABS_HAT0X, 255);
 		else
-			input_event(EV_ABS, ABS_HAT0X, 128);
-				
+			input_event(EV_ABS, ABS_HAT0X, 127);
+
+		if (data.buttons&AVRSHOCK2_BUTTON_UP)
+			input_event(EV_ABS, ABS_HAT0Y, 0);
+		else if (data.buttons&AVRSHOCK2_BUTTON_DOWN)
+			input_event(EV_ABS, ABS_HAT0Y, 255);
+		else
+			input_event(EV_ABS, ABS_HAT0Y, 127);
 				
 		input_event(EV_SYN, SYN_REPORT, 0);
 		usleep(2000);

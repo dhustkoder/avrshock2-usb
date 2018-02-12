@@ -8,8 +8,11 @@
 #include <unistd.h>
 #include <termios.h>
 #include <linux/uinput.h>
-#include "../device/avrshock2_usb_data.h"
+#include "avrshock2_usb_types.h"
 
+#ifndef AVRSHOCK2_USB_HOST_BAUD
+#error Need AVRSHOCK2_USB_HOST_BAUD definition
+#endif
 
 #define NBUTTONS (16)
 #define NAXIS    (4)
@@ -88,32 +91,34 @@ static bool init_system(const char* const device_path)
 		goto Lclose_uinput;
 	}
 
-	/* setup serial communication */
-	struct termios tty = { 0 };
-	if (tcgetattr(avrshock2_fd, &tty) != 0) {
+	/* setup serial communication to raw mode */
+	struct termios serial_setup = { 0 };
+	if (tcgetattr(avrshock2_fd, &serial_setup) != 0) {
 	        perror("tcgetattr error");
 	        goto Lclose_avrshock2;
 	}
+	cfsetospeed(&serial_setup, AVRSHOCK2_USB_HOST_BAUD);
+	cfsetispeed(&serial_setup, AVRSHOCK2_USB_HOST_BAUD);
 
-	cfsetospeed(&tty, B38400);
-	cfsetispeed(&tty, B38400);
-	tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;     // 8-bit chars
-	// disable IGNBRK for mismatched speed tests; otherwise receive break
-	// as \000 chars
-	tty.c_iflag &= ~IGNBRK;         // disable break processing
-	tty.c_lflag = 0;                // no signaling chars, no echo,
-	                                // no canonical processing
-	tty.c_oflag = 0;                // no remapping, no delays
-	tty.c_cc[VMIN]  = 0;            // read doesn't block
-	tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
+	/* control flags */
+	serial_setup.c_cflag  = (serial_setup.c_cflag & ~CSIZE) | CS8;
+	serial_setup.c_cflag |= (CLOCAL | CREAD);
+	serial_setup.c_cflag &= ~(PARENB | PARODD);
+	serial_setup.c_cflag &= ~CSTOPB;
+	serial_setup.c_cflag &= ~CRTSCTS;
 
-	tty.c_iflag &= ~(IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
-	tty.c_cflag |= (CLOCAL | CREAD);    // ignore modem controls,
-	                                    // enable reading
-	tty.c_cflag &= ~(PARENB | PARODD);  // shut off parity
-	tty.c_cflag &= ~CSTOPB;
-	tty.c_cflag &= ~CRTSCTS;
-	if (tcsetattr(avrshock2_fd, TCSANOW, &tty) != 0) {
+	/* input flags */
+	serial_setup.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR);
+	serial_setup.c_iflag &= ~(IXON | IXOFF | IXANY);
+
+	/* output flags */
+	serial_setup.c_oflag &= ~OPOST;
+	/* local flags */
+	serial_setup.c_lflag = 0;
+	/* control characters */
+	serial_setup.c_cc[VMIN]  = 0;
+	serial_setup.c_cc[VTIME] = 2;
+	if (tcsetattr(avrshock2_fd, TCSANOW, &serial_setup) != 0) {
 	        perror("tcsetattr error");
 	        goto Lclose_avrshock2;
 	}
@@ -127,6 +132,7 @@ static bool init_system(const char* const device_path)
 	/* enabel and configure axis and hats */
 	ioctl(uinput_fd, UI_SET_EVBIT, EV_ABS);
 	struct uinput_abs_setup abs_setup = { 0 };
+	abs_setup.absinfo.value = 0x80;
 	abs_setup.absinfo.maximum = 0xFF;
 	for (int i = 0; i < NAXIS; ++i) {
 		abs_setup.code = axis[i];
@@ -148,8 +154,7 @@ static bool init_system(const char* const device_path)
 	signal(SIGKILL, signal_handler);
 
 	/* handshaking avrshock2 device */
-	puts("Trying to handshake avrshock2 device.\n"
-	     "If this is taking too long, try disconecting and connecting your device back.");
+	puts("Trying to handshake avrshock2 device.");
 	const uint8_t send_code[] = { 0xDE, 0xAD };
 	const uint8_t recv_code_match[] = { 0xC0, 0xDE };
 	uint8_t recv_code[] = { 0x00, 0x00 };
@@ -158,7 +163,7 @@ static bool init_system(const char* const device_path)
 		serial_recv(recv_code, sizeof(recv_code));
 	} while (memcmp(recv_code, recv_code_match, sizeof(recv_code)) != 0);
 	puts("Handshake successful!\n"
-	     "virtual device \'avrshock2 joystick\' created");
+	     "virtual device \'avrshock2 joystick\' created.");
 
 	return true;
 

@@ -1,9 +1,12 @@
-#ifndef AVRSHOCK2_USB_DATA_H_
-#define AVRSHOCK2_USB_DATA_H_
+#ifndef AVRSHOCK2_USB_TYPES_H_
+#define AVRSHOCK2_USB_TYPES_H_
 
 #define AVRSHOCK2_H_TYPES_ONLY 
-#include "../../external/avrshock2/src/avrshock2.h"
+#include "avrshock2.h"
 #undef AVRSHOCK2_H_TYPES_ONLY
+
+#define AVRSHOCK2_USB_DEVICE_BAUD (38400)
+#define AVRSHOCK2_USB_HOST_BAUD    B38400
 
 struct avrshock2_usb_data {
 	avrshock2_button_t buttons;

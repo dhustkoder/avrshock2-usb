@@ -2,11 +2,14 @@
 #include <stdnoreturn.h>
 #include <util/delay.h>
 #include <avr/io.h>
-#define BAUD (38400)
-#include <util/setbaud.h>
-#include "../../external/avrshock2/src/avrshock2.h"
-#include "avrshock2_usb_data.h"
+#include "avrshock2.h"
+#include "avrshock2_usb_types.h"
 
+#ifndef AVRSHOCK2_USB_DEVICE_BAUD
+#error Need AVRSHOCK2_USB_DEVICE_BAUD definition
+#endif
+#define BAUD AVRSHOCK2_USB_DEVICE_BAUD
+#include <util/setbaud.h>
 
 
 static void serial_send(const void* const data, const short size)

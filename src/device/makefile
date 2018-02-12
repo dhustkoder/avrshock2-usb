@@ -1,7 +1,6 @@
 TARGET = avrshock2-usb
-SOURCES = avrshock2/src/avrshock2.c src/avrshock2-usb.c
-HEADERS = avrshock2/src/avrshock2.h
-INCLUDE_DIRS = -Iavrshock2/src
+SOURCES = ../../external/avrshock2/src/avrshock2.c $(wildcard *.c)
+HEADERS = ../../external/avrshock2/src/avrshock2.h $(wildcard *.h)
 MCU = atmega328p
 F_CPU = 16000000
 
@@ -15,7 +14,7 @@ CFLAGS = -std=c11 -pedantic-errors -Wall -Wextra -Wno-main -DNDEBUG -DAVRSHOCK2_
          -ffast-math -fstrict-aliasing -ffunction-sections -fdata-sections                  \
 	 -fwhole-program -ffreestanding -fno-tree-scev-cprop                                \
 	 -Wl,--relax -fno-unwind-tables  -fno-asynchronous-unwind-tables                    \
-         -DNDEBUG -mmcu=$(MCU) -DF_CPU=$(F_CPU)UL $(INCLUDE_DIRS)
+         -DNDEBUG -mmcu=$(MCU) -DF_CPU=$(F_CPU)UL
 
 # AVRDUDE
 AVRDUDE = avrdude
@@ -24,7 +23,7 @@ AVRDUDE_PROGRAMMER = arduino
 
 all: $(TARGET)
 
-$(TARGET): $(HEADERS) $(SOURCES)
+$(TARGET): $(SOURCES) $(HEADERS)
 	$(CC) $(CFLAGS) $(SOURCES) -o $(TARGET).elf
 	$(OBJCOPY) -j .text  -j .data -O ihex $(TARGET).elf $(TARGET).hex
 	$(SIZE) $(TARGET).elf

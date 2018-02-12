@@ -11,20 +11,22 @@
 #include "../device/avrshock2_usb_data.h"
 
 
-#define NBUTTONS (12)
+#define NBUTTONS (16)
 #define NAXIS    (4)
-#define NHATS    (2)
 
 static const int buttons[NBUTTONS] = { 
 	BTN_SELECT, BTN_THUMBL, BTN_THUMBR, BTN_START, BTN_TL2, 
-	BTN_TR2, BTN_TL, BTN_TR, BTN_Y, BTN_A, BTN_B, BTN_X
+	BTN_TR2, BTN_TL, BTN_TR, BTN_Y, BTN_A, BTN_B, BTN_X,
+	BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT
 };
 
 static const avrshock2_button_t buttons_avrshock2_masks[NBUTTONS] = {
 	AVRSHOCK2_BUTTON_SELECT, AVRSHOCK2_BUTTON_L3, AVRSHOCK2_BUTTON_R3,
 	AVRSHOCK2_BUTTON_START, AVRSHOCK2_BUTTON_L2, AVRSHOCK2_BUTTON_R2,
 	AVRSHOCK2_BUTTON_L1, AVRSHOCK2_BUTTON_R1, AVRSHOCK2_BUTTON_SQUARE,
-	AVRSHOCK2_BUTTON_CIRCLE, AVRSHOCK2_BUTTON_CROSS, AVRSHOCK2_BUTTON_TRIANGLE
+	AVRSHOCK2_BUTTON_CIRCLE, AVRSHOCK2_BUTTON_CROSS, AVRSHOCK2_BUTTON_TRIANGLE,
+	AVRSHOCK2_BUTTON_UP, AVRSHOCK2_BUTTON_DOWN, AVRSHOCK2_BUTTON_LEFT,
+	AVRSHOCK2_BUTTON_RIGHT
 };
 
 static const int axis[NAXIS] = {
@@ -38,9 +40,6 @@ static const avrshock2_axis_t axis_avrshock2_idxs[NAXIS] = {
 
 };
 
-static const int hats[NHATS] = {
-	ABS_HAT0X, ABS_HAT0Y
-};
 
 static int uinput_fd;
 static int avrshock2_fd;
@@ -133,10 +132,6 @@ static bool init_system(const char* const device_path)
 		abs_setup.code = axis[i];
 		ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
 	}
-	for (int i = 0; i < NHATS; ++i) {
-		abs_setup.code = hats[i];
-		ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
-	}
 
 	/* create device */
 	struct uinput_setup usetup = { 0 };
@@ -207,20 +202,6 @@ int main(int argc, char** argv)
 
 		for (int i = 0; i < NAXIS; ++i)
 			input_event(EV_ABS, axis[i], data.axis[axis_avrshock2_idxs[i]]);
-
-		if (data.buttons&AVRSHOCK2_BUTTON_LEFT)
-			input_event(EV_ABS, ABS_HAT0X, 0);
-		else if (data.buttons&AVRSHOCK2_BUTTON_RIGHT)
-			input_event(EV_ABS, ABS_HAT0X, 255);
-		else
-			input_event(EV_ABS, ABS_HAT0X, 127);
-
-		if (data.buttons&AVRSHOCK2_BUTTON_UP)
-			input_event(EV_ABS, ABS_HAT0Y, 0);
-		else if (data.buttons&AVRSHOCK2_BUTTON_DOWN)
-			input_event(EV_ABS, ABS_HAT0Y, 255);
-		else
-			input_event(EV_ABS, ABS_HAT0Y, 127);
 				
 		input_event(EV_SYN, SYN_REPORT, 0);
 		usleep(2000);

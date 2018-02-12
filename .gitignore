@@ -7,4 +7,4 @@
 *.o
 *.sym
 *.d
-host/avrshock2_host
+avrshock2_host

@@ -29,8 +29,8 @@ static void serial_init(void)
 
 noreturn void main(void)
 {
-	extern uint8_t avrshock2_buttons[AVRSHOCK2_BUTTON_LAST + 1];
-	extern uint8_t avrshock2_analogs[AVRSHOCK2_ANALOG_LAST + 1];
+	extern uint8_t avrshock2_buttons[AVRSHOCK2_BUTTONS_SIZE];
+	extern uint8_t avrshock2_analogs[AVRSHOCK2_ANALOGS_SIZE];
 
 	uint8_t data[sizeof(avrshock2_buttons) + sizeof(avrshock2_analogs)];
 	uint8_t data_old[sizeof(data)];

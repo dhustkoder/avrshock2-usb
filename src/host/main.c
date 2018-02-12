@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
@@ -41,9 +42,16 @@ static const int hats[NHATS] = {
 	ABS_HAT0X, ABS_HAT0Y
 };
 
-static int uintput_fd;
+static int uinput_fd;
 static int avrshock2_fd;
+static bool terminate_signal = false;
 
+
+static void signal_handler(const int signum)
+{
+	printf("\nReceived signal: %d\n", signum);
+	terminate_signal = true;
+}
 
 static void input_event(const int type, const int code, const int val)
 {
@@ -51,7 +59,7 @@ static void input_event(const int type, const int code, const int val)
 	ie.type = type;
 	ie.code = code;
 	ie.value = val;
-	if ((unsigned)write(uintput_fd, &ie, sizeof(ie)) < sizeof(ie))
+	if ((unsigned)write(uinput_fd, &ie, sizeof(ie)) < sizeof(ie))
 		perror("input_event write failed");
 }
 
@@ -69,9 +77,8 @@ static void serial_recv(void* const data, const short size)
 
 static bool init_system(const char* const device_path)
 {
-
-	uintput_fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
-	if (uintput_fd == -1) {
+	uinput_fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+	if (uinput_fd == -1) {
 		perror("Couldn't open uinput_fd");
 		return false;
 	}
@@ -79,16 +86,14 @@ static bool init_system(const char* const device_path)
 	avrshock2_fd = open(device_path, O_RDWR | O_NOCTTY | O_SYNC);
 	if (avrshock2_fd == -1) {
 		perror("Coudn't open avrshock2_fd");
-		close(uintput_fd);
-		return false;
+		goto Lclose_uinput;
 	}
 
+	/* setup serial communication */
 	struct termios tty = { 0 };
 	if (tcgetattr(avrshock2_fd, &tty) != 0) {
 	        perror("tcgetattr error");
-	        close(avrshock2_fd);
-	        close(uintput_fd);
-	        return false;
+	        goto Lclose_avrshock2;
 	}
 
 	cfsetospeed(&tty, B38400);
@@ -111,28 +116,26 @@ static bool init_system(const char* const device_path)
 	tty.c_cflag &= ~CRTSCTS;
 	if (tcsetattr(avrshock2_fd, TCSANOW, &tty) != 0) {
 	        perror("tcsetattr error");
-	        close(avrshock2_fd);
-	        close(uintput_fd);
-	        return false;
+	        goto Lclose_avrshock2;
 	}
 
 
 	/* enables btns */
-	ioctl(uintput_fd, UI_SET_EVBIT, EV_KEY);
+	ioctl(uinput_fd, UI_SET_EVBIT, EV_KEY);
 	for (int i = 0; i < NBUTTONS; ++i)
-		ioctl(uintput_fd, UI_SET_KEYBIT, buttons[i]);
+		ioctl(uinput_fd, UI_SET_KEYBIT, buttons[i]);
 
 	/* enabel and configure axis and hats */
-	ioctl(uintput_fd, UI_SET_EVBIT, EV_ABS);
+	ioctl(uinput_fd, UI_SET_EVBIT, EV_ABS);
 	struct uinput_abs_setup abs_setup = { 0 };
 	abs_setup.absinfo.maximum = 0xFF;
 	for (int i = 0; i < NAXIS; ++i) {
 		abs_setup.code = axis[i];
-		ioctl(uintput_fd, UI_ABS_SETUP, &abs_setup);
+		ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
 	}
 	for (int i = 0; i < NHATS; ++i) {
 		abs_setup.code = hats[i];
-		ioctl(uintput_fd, UI_ABS_SETUP, &abs_setup);
+		ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
 	}
 
 	/* create device */
@@ -141,9 +144,13 @@ static bool init_system(const char* const device_path)
 	usetup.id.vendor = 0xDEAD;
 	usetup.id.product = 0xC0DE;
 	strcpy(usetup.name, "avrshock2 joystick");
-	ioctl(uintput_fd, UI_DEV_SETUP, &usetup);
-	ioctl(uintput_fd, UI_DEV_CREATE);
+	ioctl(uinput_fd, UI_DEV_SETUP, &usetup);
+	ioctl(uinput_fd, UI_DEV_CREATE);
 
+	/* install signal handler */
+	signal(SIGINT, signal_handler);
+	signal(SIGTERM, signal_handler);
+	signal(SIGKILL, signal_handler);
 
 	/* handshaking avrshock2 device */
 	puts("Trying to handshake avrshock2 device.\n"
@@ -159,13 +166,19 @@ static bool init_system(const char* const device_path)
 	     "virtual device \'avrshock2 joystick\' created");
 
 	return true;
+
+Lclose_avrshock2:
+	close(avrshock2_fd);
+Lclose_uinput:
+	close(uinput_fd);
+	return false;
 }
 
 static void term_system(void)
 {
-	ioctl(uintput_fd, UI_DEV_DESTROY);
+	ioctl(uinput_fd, UI_DEV_DESTROY);
 	close(avrshock2_fd);
-	close(uintput_fd);
+	close(uinput_fd);
 }
 
 
@@ -181,7 +194,7 @@ int main(int argc, char** argv)
 
 	struct avrshock2_usb_data data;
 
-	for (;;) {
+	while (!terminate_signal) {
 		serial_recv(&data, sizeof(data));
 		
 		for (int i = 0; i < NBUTTONS; ++i) {

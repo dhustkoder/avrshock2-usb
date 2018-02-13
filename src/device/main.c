@@ -5,12 +5,6 @@
 #include "avrshock2.h"
 #include "avrshock2_usb_types.h"
 
-#ifndef AVRSHOCK2_USB_DEVICE_BAUD
-#error Need AVRSHOCK2_USB_DEVICE_BAUD definition
-#endif
-#define BAUD AVRSHOCK2_USB_DEVICE_BAUD
-#include <util/setbaud.h>
-
 
 static void serial_send(const void* const data, const short size)
 {
@@ -30,10 +24,22 @@ static void serial_recv(void* const data, const short size)
 
 static void serial_init(void)
 {
+	#ifndef AVRSHOCK2_USB_DEVICE_BAUD
+	#error Need AVRSHOCK2_USB_DEVICE_BAUD definition
+	#endif
+	#define BAUD AVRSHOCK2_USB_DEVICE_BAUD
+	#include <util/setbaud.h>
+
 	UBRR0H = UBRRH_VALUE;
 	UBRR0L = UBRRL_VALUE;
+	#if USE_2X
+	UCSR0A |= (0x01<<U2X0);
+	#else
+	UCSR0A &= ~(0x01<<U2X0);
+	#endif
 	UCSR0C = (0x01<<UCSZ01)|(0x01<<UCSZ00); /* 8-bit data */ 
 	UCSR0B = (0x01<<RXEN0)|(0x01<<TXEN0);   /* Enable RX and TX */
+
 	/* handshake */
 	const uint8_t recv_code_match[] = { 0xDE, 0xAD };
 	const uint8_t send_code[] = { 0xC0, 0xDE };
@@ -56,8 +62,8 @@ noreturn void main(void)
 	for (;;) {
 		if (avrshock2_poll(&data.buttons, data.axis))
 			serial_send(&data, sizeof(data));
-		_delay_us(2000);
+		else
+			_delay_ms(2);
 	}
-	
 }
 

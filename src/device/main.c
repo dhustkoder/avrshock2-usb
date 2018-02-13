@@ -62,7 +62,7 @@ noreturn void main(void)
 	for (;;) {
 		if (avrshock2_poll(&data.buttons, data.axis))
 			serial_send(&data, sizeof(data));
-		_delay_us((((1.0 / AVRSHOCK2_USB_BAUD) * 8) * sizeof(data)) * 1000000);
+		_delay_us(((((1.0 / AVRSHOCK2_USB_BAUD) * 8) * sizeof(data)) * 1000000) / 2);
 	}
 }
 

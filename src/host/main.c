@@ -206,12 +206,8 @@ int main(int argc, char** argv)
 
 	struct avrshock2_usb_data data = { 0 };
 	struct avrshock2_usb_data data_old = { 0 };
-	int iter = 0;
-	time_t timer = time(NULL);
-
 	while (!terminate_signal) {
 		serial_recv(&data, sizeof(data));
-
 		if (memcmp(&data_old, &data, sizeof(data)) != 0) {
 			memcpy(&data_old, &data, sizeof(data));
 			for (int i = 0; i < NBUTTONS; ++i) {
@@ -226,16 +222,9 @@ int main(int argc, char** argv)
 				input_event(EV_ABS, axis[i], data.axis[axis_avrshock2_idxs[i]]);
 
 			input_event(EV_SYN, SYN_REPORT, 0);
-			++iter;
 		}
 
-		if ((time(NULL) - timer) > 1) {
-			printf("inputs per sec: %d\n", iter);
-			iter = 0;
-			++timer;
-		}
-
-		usleep((((1.0 / AVRSHOCK2_USB_BAUD) * 8) * sizeof(data)) * 1000000);
+		usleep(((((1.0 / AVRSHOCK2_USB_BAUD) * 8) * sizeof(data)) * 1000000) / 2);
 	}
 
 	term_system();

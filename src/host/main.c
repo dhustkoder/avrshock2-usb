@@ -58,12 +58,13 @@ static void term_system(void);
 
 static void signal_handler(const int signum)
 {
+	printf("\nReceived signal: %d\n", signum);
+
 	if (terminate_signal) {
-		printf("\nSignals sequentially received, aborting program...\n");
 		term_system();
 		exit(signum);
 	}
-	printf("\nReceived signal: %d\n", signum);
+	
 	terminate_signal = true;
 }
 
@@ -83,10 +84,12 @@ static void serial_send(const void* const data, const short size)
 		perror("serial_send write failed");
 }
 
-static void serial_recv(void* const data, const short size)
+static bool serial_recv(void* const data, const short size)
 {
-	if (read(avrshock2_fd, data, size) == -1)
+	const int v = read(avrshock2_fd, data, size);
+	if (v == -1)
 		perror("serial_recv read failed");
+	return v == size;
 }
 
 static bool init_system(const char* const device_path)
@@ -129,7 +132,7 @@ static bool init_system(const char* const device_path)
 	serial_setup.c_lflag = 0;
 	/* control characters */
 	serial_setup.c_cc[VMIN]  = 0;
-	serial_setup.c_cc[VTIME] = 0;
+	serial_setup.c_cc[VTIME] = 5;
 	if (tcsetattr(avrshock2_fd, TCSANOW, &serial_setup) != 0) {
 	        perror("tcsetattr error");
 	        goto Lclose_avrshock2;
@@ -205,25 +208,26 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 
 	struct avrshock2_usb_data data = { 0 };
-	struct avrshock2_usb_data data_old = { 0 };
+	avrshock2_mode_t old_mode = 0;
+
 	while (!terminate_signal) {
-		serial_recv(&data, sizeof(data));
-		if (memcmp(&data_old, &data, sizeof(data)) != 0) {
-			memcpy(&data_old, &data, sizeof(data));
+		if (serial_recv(&data, sizeof(data))) {
 			for (int i = 0; i < NBUTTONS; ++i) {
-				input_event(
-				  EV_KEY, 
-				  buttons[i], 
-				  (buttons_avrshock2_masks[i]&data.buttons) ? 1 : 0
-				);
+				input_event(EV_KEY, buttons[i], 
+				  (buttons_avrshock2_masks[i]&data.buttons) ? 1 : 0);
 			}
-
-			for (int i = 0; i < NAXIS; ++i)
-				input_event(EV_ABS, axis[i], data.axis[axis_avrshock2_idxs[i]]);
-
+			if (data.mode == AVRSHOCK2_MODE_ANALOG) {
+				for (int i = 0; i < NAXIS; ++i) {
+					input_event(EV_ABS, axis[i],
+					  data.axis[axis_avrshock2_idxs[i]]);
+				}
+			} else if (old_mode == AVRSHOCK2_MODE_ANALOG) {
+				for (int i = 0; i < NAXIS; ++i)
+					input_event(EV_ABS, axis[i], 0x80);
+			}
 			input_event(EV_SYN, SYN_REPORT, 0);
+			old_mode = data.mode;
 		}
-
 		usleep(((((1.0 / AVRSHOCK2_USB_BAUD) * 8) * sizeof(data)) * 1000000) / 2);
 	}
 

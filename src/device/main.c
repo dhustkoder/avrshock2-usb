@@ -53,15 +53,17 @@ static void serial_init(void)
 
 noreturn void main(void)
 {
-	struct avrshock2_usb_data data;
+	struct avrshock2_usb_data data = { 0 };
 
 	serial_init();
 	avrshock2_init();
-	avrshock2_set_mode(AVRSHOCK2_MODE_ANALOG, true);
+	avrshock2_set_mode(AVRSHOCK2_MODE_DIGITAL, false);
 
 	for (;;) {
-		if (avrshock2_poll(&data.buttons, data.axis))
+		if (avrshock2_poll(&data.buttons, data.axis)) {
+			data.mode = avrshock2_get_mode();
 			serial_send(&data, sizeof(data));
+		}
 		_delay_us(((((1.0 / AVRSHOCK2_USB_BAUD) * 8) * sizeof(data)) * 1000000) / 2);
 	}
 }

@@ -16,7 +16,8 @@ CFLAGS = -std=c11 -pedantic-errors -Wall -Wextra -Wno-main -DNDEBUG -DAVRSHOCK2_
          -ffast-math -fstrict-aliasing -ffunction-sections -fdata-sections                  \
 	 -fwhole-program -ffreestanding -fno-tree-scev-cprop                                \
 	 -Wl,--relax -fno-unwind-tables  -fno-asynchronous-unwind-tables                    \
-         -DNDEBUG -mmcu=$(MCU) -DF_CPU=$(F_CPU)UL -DF_AVRSHOCK2=$(F_AVRSHOCK2)UL $(INCLUDE_DIRS)
+         -DNDEBUG -mmcu=$(MCU) -DF_CPU=$(F_CPU)UL -DF_AVRSHOCK2=$(F_AVRSHOCK2)              \
+	 -DAVRSHOCK2_USB_BAUD=$(BAUD_RATE)UL $(INCLUDE_DIRS)
 
 # AVRDUDE
 AVRDUDE = avrdude

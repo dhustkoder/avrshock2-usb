@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,9 +11,13 @@
 #include <linux/uinput.h>
 #include "avrshock2_usb_types.h"
 
-#ifndef AVRSHOCK2_USB_HOST_BAUD
-#error Need AVRSHOCK2_USB_HOST_BAUD definition
+#ifndef AVRSHOCK2_USB_BAUD
+#error Need AVRSHOCK2_USB_BAUD definition
 #endif
+/* concat B + baud rate, example: B9600 */
+#define BAUD_PASTER_AUX(x, y) x ## y
+#define BAUD_EVALUATOR_AUX(x, y) BAUD_PASTER_AUX(x, y)
+#define BAUD BAUD_EVALUATOR_AUX(B, AVRSHOCK2_USB_BAUD)
 
 #define NBUTTONS (16)
 #define NAXIS    (4)
@@ -49,8 +54,15 @@ static int avrshock2_fd;
 static bool terminate_signal = false;
 
 
+static void term_system(void);
+
 static void signal_handler(const int signum)
 {
+	if (terminate_signal) {
+		printf("\nSignals sequentially received, aborting program...\n");
+		term_system();
+		exit(signum);
+	}
 	printf("\nReceived signal: %d\n", signum);
 	terminate_signal = true;
 }
@@ -97,8 +109,8 @@ static bool init_system(const char* const device_path)
 	        perror("tcgetattr error");
 	        goto Lclose_avrshock2;
 	}
-	cfsetospeed(&serial_setup, AVRSHOCK2_USB_HOST_BAUD);
-	cfsetispeed(&serial_setup, AVRSHOCK2_USB_HOST_BAUD);
+	cfsetospeed(&serial_setup, BAUD);
+	cfsetispeed(&serial_setup, BAUD);
 
 	/* control flags */
 	serial_setup.c_cflag  = (serial_setup.c_cflag & ~CSIZE) | CS8;
@@ -117,7 +129,7 @@ static bool init_system(const char* const device_path)
 	serial_setup.c_lflag = 0;
 	/* control characters */
 	serial_setup.c_cc[VMIN]  = 0;
-	serial_setup.c_cc[VTIME] = 2;
+	serial_setup.c_cc[VTIME] = 0;
 	if (tcsetattr(avrshock2_fd, TCSANOW, &serial_setup) != 0) {
 	        perror("tcsetattr error");
 	        goto Lclose_avrshock2;
@@ -192,24 +204,38 @@ int main(int argc, char** argv)
 	if (!init_system(argv[1]))
 		return EXIT_FAILURE;
 
-	struct avrshock2_usb_data data;
+	struct avrshock2_usb_data data = { 0 };
+	struct avrshock2_usb_data data_old = { 0 };
+	int iter = 0;
+	time_t timer = time(NULL);
 
 	while (!terminate_signal) {
 		serial_recv(&data, sizeof(data));
-		
-		for (int i = 0; i < NBUTTONS; ++i) {
-			input_event(
-			  EV_KEY, 
-			  buttons[i], 
-			  (buttons_avrshock2_masks[i]&data.buttons) ? 1 : 0
-			);
+
+		if (memcmp(&data_old, &data, sizeof(data)) != 0) {
+			memcpy(&data_old, &data, sizeof(data));
+			for (int i = 0; i < NBUTTONS; ++i) {
+				input_event(
+				  EV_KEY, 
+				  buttons[i], 
+				  (buttons_avrshock2_masks[i]&data.buttons) ? 1 : 0
+				);
+			}
+
+			for (int i = 0; i < NAXIS; ++i)
+				input_event(EV_ABS, axis[i], data.axis[axis_avrshock2_idxs[i]]);
+
+			input_event(EV_SYN, SYN_REPORT, 0);
+			++iter;
 		}
 
-		for (int i = 0; i < NAXIS; ++i)
-			input_event(EV_ABS, axis[i], data.axis[axis_avrshock2_idxs[i]]);
-				
-		input_event(EV_SYN, SYN_REPORT, 0);
-		usleep(2000);
+		if ((time(NULL) - timer) > 1) {
+			printf("inputs per sec: %d\n", iter);
+			iter = 0;
+			++timer;
+		}
+
+		usleep((((1.0 / AVRSHOCK2_USB_BAUD) * 8) * sizeof(data)) * 1000000);
 	}
 
 	term_system();

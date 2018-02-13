@@ -24,10 +24,10 @@ static void serial_recv(void* const data, const short size)
 
 static void serial_init(void)
 {
-	#ifndef AVRSHOCK2_USB_DEVICE_BAUD
-	#error Need AVRSHOCK2_USB_DEVICE_BAUD definition
+	#ifndef AVRSHOCK2_USB_BAUD
+	#error Need AVRSHOCK2_USB_BAUD definition
 	#endif
-	#define BAUD AVRSHOCK2_USB_DEVICE_BAUD
+	#define BAUD AVRSHOCK2_USB_BAUD
 	#include <util/setbaud.h>
 
 	UBRR0H = UBRRH_VALUE;
@@ -62,8 +62,7 @@ noreturn void main(void)
 	for (;;) {
 		if (avrshock2_poll(&data.buttons, data.axis))
 			serial_send(&data, sizeof(data));
-		else
-			_delay_ms(2);
+		_delay_us((((1.0 / AVRSHOCK2_USB_BAUD) * 8) * sizeof(data)) * 1000000);
 	}
 }
 

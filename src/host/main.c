@@ -107,33 +107,32 @@ static bool init_system(const char* const device_path)
 	}
 
 	/* setup serial communication to raw mode */
-	struct termios serial_setup = { 0 };
-	if (tcgetattr(avrshock2_fd, &serial_setup) != 0) {
+	struct termios serial_cfg = { 0 };
+	if (tcgetattr(avrshock2_fd, &serial_cfg) != 0) {
 	        perror("tcgetattr error");
 	        goto Lclose_avrshock2;
 	}
-	cfsetospeed(&serial_setup, BAUD);
-	cfsetispeed(&serial_setup, BAUD);
+	
+	cfsetospeed(&serial_cfg, BAUD);
+	cfsetispeed(&serial_cfg, BAUD);
 
 	/* control flags */
-	serial_setup.c_cflag  = (serial_setup.c_cflag & ~CSIZE) | CS8;
-	serial_setup.c_cflag |= (CLOCAL | CREAD);
-	serial_setup.c_cflag &= ~(PARENB | PARODD);
-	serial_setup.c_cflag &= ~CSTOPB;
-	serial_setup.c_cflag &= ~CRTSCTS;
-
+	serial_cfg.c_cflag  = (serial_cfg.c_cflag & ~CSIZE) | CS8;
+	serial_cfg.c_cflag |= (CLOCAL | CREAD);
+	serial_cfg.c_cflag &= ~(PARENB | PARODD);
+	serial_cfg.c_cflag &= ~CSTOPB;
+	serial_cfg.c_cflag &= ~CRTSCTS;
 	/* input flags */
-	serial_setup.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR);
-	serial_setup.c_iflag &= ~(IXON | IXOFF | IXANY);
-
+	serial_cfg.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR);
+	serial_cfg.c_iflag &= ~(IXON | IXOFF | IXANY);
 	/* output flags */
-	serial_setup.c_oflag &= ~OPOST;
+	serial_cfg.c_oflag &= ~OPOST;
 	/* local flags */
-	serial_setup.c_lflag = 0;
+	serial_cfg.c_lflag = 0;
 	/* control characters */
-	serial_setup.c_cc[VMIN]  = 0;
-	serial_setup.c_cc[VTIME] = 5;
-	if (tcsetattr(avrshock2_fd, TCSANOW, &serial_setup) != 0) {
+	serial_cfg.c_cc[VMIN]  = 0;
+	serial_cfg.c_cc[VTIME] = 5;
+	if (tcsetattr(avrshock2_fd, TCSANOW, &serial_cfg) != 0) {
 	        perror("tcsetattr error");
 	        goto Lclose_avrshock2;
 	}
@@ -144,11 +143,12 @@ static bool init_system(const char* const device_path)
 	for (int i = 0; i < NBUTTONS; ++i)
 		ioctl(uinput_fd, UI_SET_KEYBIT, buttons[i]);
 
-	/* enabel and configure axis and hats */
+	/* enable and configure axis and hats */
 	ioctl(uinput_fd, UI_SET_EVBIT, EV_ABS);
 	struct uinput_abs_setup abs_setup = { 0 };
-	abs_setup.absinfo.value = 0x80;
-	abs_setup.absinfo.maximum = 0xFF;
+	abs_setup.absinfo.minimum = AVRSHOCK2_AXIS_MIN;
+	abs_setup.absinfo.maximum = AVRSHOCK2_AXIS_MAX;
+	abs_setup.absinfo.value = (AVRSHOCK2_AXIS_MAX + AVRSHOCK2_AXIS_MIN) / 2;
 	for (int i = 0; i < NAXIS; ++i) {
 		abs_setup.code = axis[i];
 		ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
@@ -220,10 +220,13 @@ int main(int argc, char** argv)
 				for (int i = 0; i < NAXIS; ++i) {
 					input_event(EV_ABS, axis[i],
 					  data.axis[axis_avrshock2_idxs[i]]);
-				}
+				} 
 			} else if (old_mode == AVRSHOCK2_MODE_ANALOG) {
-				for (int i = 0; i < NAXIS; ++i)
-					input_event(EV_ABS, axis[i], 0x80);
+				for (int i = 0; i < NAXIS; ++i) {
+					input_event(EV_ABS, axis[i],
+					  (AVRSHOCK2_AXIS_MAX + AVRSHOCK2_AXIS_MIN) / 2
+					);
+				}
 			}
 			input_event(EV_SYN, SYN_REPORT, 0);
 			old_mode = data.mode;

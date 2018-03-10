@@ -19,8 +19,8 @@
 #define BAUD_EVALUATOR_AUX(x, y) BAUD_PASTER_AUX(x, y)
 #define BAUD BAUD_EVALUATOR_AUX(B, AVRSHOCK2_USB_BAUD)
 
-#define NBUTTONS (16)
-#define NAXIS    (4)
+#define NBUTTONS (AVRSHOCK2_BUTTON_NBUTTONS)
+#define NAXIS    (AVRSHOCK2_AXIS_NAXIS)
 
 static const int buttons[NBUTTONS] = { 
 	BTN_SELECT, BTN_THUMBL, BTN_THUMBR, BTN_START, BTN_TL2, 
@@ -45,7 +45,6 @@ static const int axis[NAXIS] = {
 static const avrshock2_axis_t axis_avrshock2_idxs[NAXIS] = {
 	AVRSHOCK2_AXIS_LX, AVRSHOCK2_AXIS_LY,
 	AVRSHOCK2_AXIS_RX, AVRSHOCK2_AXIS_RY
-
 };
 
 

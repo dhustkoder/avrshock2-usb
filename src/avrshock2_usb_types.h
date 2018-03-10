@@ -9,7 +9,7 @@
 struct __attribute__((__packed__)) avrshock2_usb_data {
 	avrshock2_mode_t mode;
 	avrshock2_button_t buttons;
-	avrshock2_axis_t axis[AVRSHOCK2_AXIS_SIZE];
+	avrshock2_axis_t axis[AVRSHOCK2_AXIS_NAXIS];
 };
 
 

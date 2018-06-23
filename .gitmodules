@@ -1,3 +1,9 @@
 [submodule "external/avrshock2"]
 	path = external/avrshock2
 	url = https://github.com/dhustkoder/avrshock2
+[submodule "external/SerialPort"]
+	path = external/SerialPort
+	url = https://github.com/manashmndl/SerialPort
+[submodule "external/vJoy"]
+	path = external/vJoy
+	url = https://github.com/shauleiz/vJoy

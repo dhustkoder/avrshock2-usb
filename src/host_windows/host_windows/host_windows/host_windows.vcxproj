@@ -114,11 +114,12 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <PreprocessorDefinitions>;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>vJoyInterface.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>vJoyInterfaceStat.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Users\Rafael\Documents\Projects\avrshock2-usb\src\host_windows\host_windows\Win32\Release;C:\Users\Rafael\Documents\Projects\avrshock2-usb\external\vJoy\apps\common\vJoyInterface\Release\x86\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
